@@ -1,5 +1,5 @@
 import org.jsoup.Jsoup
-import org.jsoup.nodes.{Document, Element}
+import org.jsoup.nodes.{Attribute, Document, Element}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
@@ -7,16 +7,12 @@ import scala.util.{Failure, Try}
 
 object SmartXMLParser {
 
-  private val matchingScore = 0.5
+  private val minScore = 0.5
 
-  case class MatchingElement(element: Element, matchingAttributes: Seq[(String, String)]) {
-    def score: Double = matchingAttributes.size / element.attributes().size.toDouble
-
-    def path: String = {
-      val p = element.parents().asScala.reverse
-        .foldLeft(""){(acc, elem) => acc + elem.nodeName() concat ">"}
-      p concat element.nodeName()
-    }
+  case class MatchingElement(element: Element) {
+    def path: String = element.parents().asScala.reverse
+      .foldLeft("") { (acc, elem) => acc + elem.nodeName() concat ">" }
+      .concat(element.nodeName())
   }
 
   def findMatchingElement(originFilePath: String, targetFilePath: String, elementId: String): Try[Option[MatchingElement]] = {
@@ -29,15 +25,26 @@ object SmartXMLParser {
     }
 
     def findMatches(element: Element, document: Document): Seq[MatchingElement] = {
-      document.getElementsByTag(element.nodeName())
-        .asScala.map(MatchingElement(_, Seq.empty))
+      def findMatchingAttributes(matchingElemement: Element): Seq[Attribute] = {
+        element.attributes().asScala
+          .foldLeft(Seq[Attribute]()) { (acc, attr) => if (matchingElemement.attributes().hasKey(attr.getKey)) acc :+ attr else acc }
+      }
+
+      for {
+        matchingElement <- document.getElementsByTag(element.nodeName()).asScala
+        matchingAttributes = findMatchingAttributes(matchingElement)
+        score = matchingAttributes.size / matchingElement.attributes().size.toDouble
+        if (score >= minScore)
+      } yield MatchingElement(matchingElement)
     }
 
     readDocument(originFilePath).flatMap {
       origin => {
         readElement(origin) match {
           case Some(element) => readDocument(targetFilePath).map {
-            target => findMatches(element, target).headOption // TODO
+            target => {
+              findMatches(element, target).headOption // TODO Sort by score. Return the highest score
+            }
           }
           case None => Failure(throw new java.lang.RuntimeException(s"Element ${elementId} not found in origin file"))
         }

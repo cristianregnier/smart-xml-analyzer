@@ -11,7 +11,6 @@ object Main extends App with StrictLogging {
   val target = args(1)
   val elementId = args(2)
 
-
   SmartXMLParser.findMatchingElement(origin, target, elementId) match {
     case Success(Some(element)) => logger.info(s"Matching element: ${element.path}")
     case Success(None) => logger.info(s"No matching element was found for '${elementId}'")
