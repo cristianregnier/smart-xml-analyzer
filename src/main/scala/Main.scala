@@ -12,7 +12,7 @@ object Main extends App with StrictLogging {
   val elementId = args(2)
 
   SmartXMLParser.findMatchingElement(origin, target, elementId) match {
-    case Success(Some(element)) => logger.info(s"Matching element: ${element.path}")
+    case Success(Some(element)) => logger.info(element.path)
     case Success(None) => logger.info(s"No matching element was found for '${elementId}'")
     case Failure(exception) => logger.error("Error finding match", exception)
   }

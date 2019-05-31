@@ -9,7 +9,7 @@ object SmartXMLParser {
 
   private val minScore = 0.5
 
-  case class MatchingElement(element: Element) {
+  case class MatchingElement(element: Element, score: Double) {
     def path: String = element.parents().asScala.reverse
       .foldLeft("") { (acc, elem) => acc + elem.nodeName() concat ">" }
       .concat(element.nodeName())
@@ -33,9 +33,9 @@ object SmartXMLParser {
       for {
         matchingElement <- document.getElementsByTag(element.nodeName()).asScala
         matchingAttributes = findMatchingAttributes(matchingElement)
-        score = matchingAttributes.size / matchingElement.attributes().size.toDouble
+        score = matchingAttributes.size / element.attributes().size.toDouble
         if (score >= minScore)
-      } yield MatchingElement(matchingElement)
+      } yield MatchingElement(matchingElement, score)
     }
 
     readDocument(originFilePath).flatMap {
@@ -43,7 +43,9 @@ object SmartXMLParser {
         readElement(origin) match {
           case Some(element) => readDocument(targetFilePath).map {
             target => {
-              findMatches(element, target).headOption // TODO Sort by score. Return the highest score
+              findMatches(element, target)
+                .sortBy(_.score).reverse
+                .headOption
             }
           }
           case None => Failure(throw new java.lang.RuntimeException(s"Element ${elementId} not found in origin file"))
